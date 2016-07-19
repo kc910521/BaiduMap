@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <style type="text/css">
+        body, html,#allmap {width: 100%;height: 100%;overflow: hidden;margin:0;font-family:"微软雅黑";}
+        #allmap {width: 100%;height: 90%;overflow: hidden;margin:0;font-family:"微软雅黑";}
+        #mapInf {width: 100%;height: 10%;overflow: hidden;margin:0;}
+        .inf_detail{
+            line-height: 13px;
+        }
+    </style>
+    <script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=8ocyUCbTo9gbvjGy0UAdDEsF"></script>
+    <script type="text/javascript" src="http://api.map.baidu.com/library/CurveLine/1.5/src/CurveLine.min.js"></script>
+    <title>设置点的新图标</title>
+</head>
+<body>
+<div id="mapInf">
+    <span class="inf_detail">111111</span>
+</div>
+<div id="allmap"></div>
+</body>
+</html>
+<script type="text/javascript" src="../js/jquery-3.1.0.min.js"></script>
+<script type="text/javascript">
+    // 百度地图API功能
+    var map = new BMap.Map("allmap");
+    //var point = new BMap.Point(116.404, 39.915);
+    map.centerAndZoom(new BMap.Point(118.454, 32.955), 6);
+    map.enableScrollWheelZoom();
+    //创建小狐狸
+    var pt = new BMap.Point(116.417, 39.909);
+
+    var vectorWARNING = new BMap.Marker(pt, {
+        // 初始化警告标志的symbol
+        icon: new BMap.Symbol(BMap_Symbol_SHAPE_WARNING, {
+            scale: 2,
+            strokeWeight: 1,
+            fillColor: 'pink',
+            fillOpacity: 0.8
+        })
+    });
+    //图片
+    //var myIcon = new BMap.Icon("http://developer.baidu.com/map/jsdemo/img/fox.gif", new BMap.Size(300,157));
+    //var marker2 = new BMap.Marker(pt,{icon:myIcon});  // 创建标注
+    map.addOverlay(vectorWARNING);              // 将标注添加到地图中
+    map.setMapStyle({style:"grayscale"});
+
+    var beijingPosition=new BMap.Point(116.432045,39.910683),
+        beijingPosition2=new BMap.Point(116.432245,39.911683),
+        hangzhouPosition=new BMap.Point(120.129721,30.314429),//
+        wuhanPosition=new BMap.Point(114.516978,30.67733),
+        taiwanPosition=new BMap.Point(121.491121,25.127053);
+    var points = [beijingPosition,wuhanPosition,beijingPosition2,hangzhouPosition, taiwanPosition];
+
+    //var curve = new BMapLib.CurveLine(points, {strokeColor:"blue", strokeWeight:5, strokeOpacity:0.6}); //创建弧线对象
+    var polyline = new BMap.Polyline(points, {strokeColor:"blue", strokeWeight:5, strokeOpacity:0.6});   //创直线
+    map.addOverlay(polyline); //添加到地图中
+    vectorWARNING.enableDragging();
+    //获取坐标
+/*    map.addEventListener("click",function(e){
+        showInf(e,"你点击了：");
+    });*/
+    //给物体注册
+    vectorWARNING.addEventListener("click",showInf);
+
+    function showInf(e){
+        $(".inf_detail").text((typeof e)+"_"+e.point.lng + "," + e.point.lat);
+
+    }
+
+    //移动
+    var myP1 = new BMap.Point(116.432045,39.910683);    //起点
+    var myP2 = new BMap.Point(121.491121,25.127053);    //终点
+    var myIcon = new BMap.Icon("../img/331.png", new BMap.Size(55, 40), {    //小车图片
+        //offset: new BMap.Size(0, -5),    //相当于CSS精灵
+        imageOffset: new BMap.Size(0, 0)    //图片的偏移量。为了是图片底部中心对准坐标点。
+    });
+    function mkMove(){
+        console.log("============curve===============");
+        console.dir(polyline);
+        console.log("============curve points===============");
+        console.dir(polyline.getPath());
+        console.dir(polyline.getPath()[0]);
+        var pts = getFillRoute(polyline.getPath());
+        //var pts = polyline.getPath();
+        var paths = pts.length;    //获得有几个点
+        var carMk = new BMap.Marker(pts[0],{icon:myIcon});
+        map.addOverlay(carMk);
+        i=0;
+        function resetMkPoint(i){
+            carMk.setPosition(pts[i]);
+            if(i < paths){
+                setTimeout(function(){
+                    i++;
+                    resetMkPoint(i);
+                },100);
+            }
+        }
+        setTimeout(function(){
+            resetMkPoint(1);
+        },100)
+
+    }
+
+    /**
+     * 将paths数组截断多次重新包装
+     * @param paths
+     * @returns {Array}
+     */
+    function getFillRoute(paths){
+        var resultArrs = [];
+        if (paths && paths.length > 1){
+            for (var idx = 0; idx < paths.length-1 ; idx ++){
+                resultArrs = resultArrs.concat(dvdLines(paths[idx].lng,paths[idx].lat,paths[idx+1].lng,paths[idx+1].lat,40));//paths;//
+            }
+        }
+        console.log("----------getFillRoute---------------");
+        console.dir(resultArrs);
+        console.log("----------getFillRoute---------------");
+        return resultArrs;
+    }
+
+    /**
+     * 将线段截多次返回数组
+     * @param x1
+     * @param y1
+     * @param x2
+     * @param y2
+     * @param pNumber
+     * @returns {Array}
+     */
+    function dvdLines(x1,y1,x2,y2,pNumber){
+        var points = [];
+        //var pn = pNumber;
+        var mnFloat = 0;
+        for (var idx = 0;idx < pNumber;idx ++){
+            mnFloat = parseFloat(idx/pNumber);
+            //points.push({lat : x1 + ((x2-x1) * mnFloat),lng : y1 + ((y2-y1) * mnFloat)});new BMap.Point
+            points.push(new BMap.Point(x1 + ((x2-x1) * mnFloat),y1 + ((y2-y1) * mnFloat)));
+        }
+        return points;
+    }
+
+    $(function(){
+        mkMove();
+
+    });
+</script>
+
