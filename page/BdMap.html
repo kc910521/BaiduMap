@@ -147,5 +147,182 @@
         mkMove();
 
     });
+        /**
+     * ck
+     * 如果未来，百度地图自己的比率不是等比数列，那本方法就废弃了
+     *------------原理就是用最近的比率为基准，根据等比数列的规则得到结果然后再算log2(结果)=指数
+     * ---实验数据-----------------------
+     * 最近比率（19） x 116.865217 116.869367
+     *
+     * y 39.722790  39.721187
+     *
+     * 所以x close差  0.004150    0
+     * y closec 0.001603
+     *=================上面此处重要，这两个数值就是基准
+     * ==================================
+     * 18 x 116.427886 116.436195
+     * y 39.912302  39.909050
+     *
+     * x 差 0.008309            2    1
+     * y 差 0.003252
+     * ====-=============================
+     * 17 x 116.423727 116.440309
+     * y  39.913948  39.907445
+     *
+     *x差 0.016582               4 2
+     * y  0.006503
+     *=======================
+     * 推测 16为
+     * x差 0.033164            8 3
+     * y差 0.013006
+     * ===========
+     * 15 为                 16     4
+     * xcha 0.066328
+     * ycha 0.026012
+     *
+     * 最远比率（5） -95.216741  -25.099243
+     *
+     *综上，算法见 @getRateByLength
+     *
+     *
+     * *
+     *
+     * */
+    function initZoomMap(minX,minY,maxX,maxY){
+        alert(minX+","+minY+","+maxX+","+maxY);
+        var midX = (parseFloat(minX) + parseFloat(maxX))/2;
+        var midY = (parseFloat(minY) + parseFloat(maxY))/2;
+        //Math.max(getRateByLength(minX,maxX,0.004150),getRateByLength(minY,maxY,0.001603));
+        var dmMax = Math.max(getRateByLength(minX,maxX,0.004150),getRateByLength(minY,maxY,0.001603));
+        console.log(minX +","+maxX+",:"+(parseFloat(minX) + parseFloat(maxX)));
+        console.log("zoom in :"+midX+","+midY+","+(19-dmMax));
+        map.centerAndZoom(new BMap.Point(midX, midY), 19-dmMax);
+
+    }
+    //finalP 设置为x或y的最近比率长度  ck
+    //本处返回值越大地图越远
+    function getRateByLength(pointA,pointB,finalP){
+        var mLength = Math.abs(pointA-pointB);
+        var trNumber = Math.round(mLength/finalP);//可以分几个最小比率
+        console.log(finalP+":"+mLength+":"+trNumber);
+        return Math.ceil(Math.log(trNumber)/Math.log(2));
+    }
+        /**
+     * 添加线段上的箭头，本方法轮子出处
+     * this function from
+     * http://blog.csdn.net/baidulbs/article/details/8571961
+     * @param polyline
+     * @param Ka
+     * @param angleValue
+     */
+    function addArrow(polyline,Ka,angleValue){ //绘制箭头的函数
+        var linePoint=polyline.getPath();//线的坐标串a
+        var arrowCount=linePoint.length;
+        for(var i =1;i<arrowCount;i++){ //在拐点处绘制箭头
+            var pixelStart=map.pointToPixel(linePoint[i-1]);
+
+            var pixelEnd=map.pointToPixel(linePoint[i]);
+            var angle=angleValue;//箭头和主线的夹角
+            //console.log("=========pix=======");
+            //console.dir(getLengthBy(pixelStart.x,pixelStart.y,pixelEnd.x,pixelEnd.y));
+            console.log("KA1:"+Ka);
+            Ka = Math.abs((-1*Ka*Ka)+Ka);
+            console.log("KA2:"+Ka);
+            var r= 19;//getLengthBy(pixelStart.x,pixelStart.y,pixelEnd.x,pixelEnd.y)/(2*Ka); //length; // r/Math.sin(angle)代表箭头长度
+            r = r * 10;
+            //alert(r);
+            //r = r>25?25:r;
+            var delta=0; //主线斜率，垂直时无斜率
+            var param=0; //代码简洁考虑
+            var pixelTemX,pixelTemY;//临时点坐标
+            var pixelX,pixelY,pixelX1,pixelY1;//箭头两个点
+            if(pixelEnd.x-pixelStart.x==0){ //斜率不存在是时
+                pixelTemX=pixelEnd.x;
+                if(pixelEnd.y>pixelStart.y)
+                {
+                    pixelTemY=pixelEnd.y-r;
+                }
+                else
+                {
+                    pixelTemY=pixelEnd.y+r;
+                }
+                //已知直角三角形两个点坐标及其中一个角，求另外一个点坐标算法
+                pixelX=pixelTemX-r*Math.tan(angle);
+                pixelX1=pixelTemX+r*Math.tan(angle);
+                pixelY=pixelY1=pixelTemY;
+            }
+            else  //斜率存在时
+            {
+                delta=(pixelEnd.y-pixelStart.y)/(pixelEnd.x-pixelStart.x);
+                param=Math.sqrt(delta*delta+1);
+
+                if((pixelEnd.x-pixelStart.x)<0) //第二、三象限
+                {
+                    pixelTemX=pixelEnd.x+ r/param;
+                    pixelTemY=pixelEnd.y+delta*r/param;
+                }else//第一、四象限
+                {
+                    pixelTemX=pixelEnd.x- r/param;
+                    pixelTemY=pixelEnd.y-delta*r/param;
+                }
+                //已知直角三角形两个点坐标及其中一个角，求另外一个点坐标算法
+                pixelX=pixelTemX+ Math.tan(angle)*r*delta/param;
+                pixelY=pixelTemY-Math.tan(angle)*r/param;
+                pixelX1=pixelTemX- Math.tan(angle)*r*delta/param;
+                pixelY1=pixelTemY+Math.tan(angle)*r/param;
+
+                //var endX = linePoint[i].lng;//落点
+                //var endY = linePoint[i].lat;//
+
+                var lth = getLengthBy(pixelEnd.x,pixelEnd.y,pixelX1,pixelY1);
+                lth = lth/10.0000;//两条都一样所以算1次
+                console.log("lth:"+lth);
+                //求邻边
+                //var linbianLth = lth*Math.cos(angle);
+                //alert(pixelEnd.x+","+pixelEnd.y+","+pixelX1+","+pixelY1+",===linbian-===:"+linbianLth);
+                console.log("pixelEnd.x-pixelX1:"+(pixelEnd.x-pixelX1)+"pixelEnd.x-pixelX:"+(pixelEnd.x-pixelX));
+                if((pixelEnd.x-pixelX1)<0) //第二、三象限
+                {
+                    pixelX1 = pixelEnd.x+(parseFloat(pixelX1-pixelEnd.x)*0.1000);
+
+                }else//第一、四象限
+                {
+                    pixelX1 = pixelEnd.x-(parseFloat(pixelEnd.x-pixelX1)*0.1000);
+
+                }
+                if (pixelEnd.y-pixelY1<0){//lluodian in 12xiangxian
+                    pixelY1 = pixelEnd.y+(parseFloat(pixelY1-pixelEnd.y)*0.1000);
+                }else{//34xiangxian
+                    pixelY1 = pixelEnd.y-(parseFloat(pixelEnd.y-pixelY1)*0.1000);
+                }
+
+                //------------pt2
+                if((pixelEnd.x-pixelX)<0) //第二、三象限
+                {
+                    pixelX = pixelEnd.x+(parseFloat(pixelX-pixelEnd.x)*0.1000);
+
+                }else//第一、四象限
+                {
+                    pixelX = pixelEnd.x-(parseFloat(pixelEnd.x-pixelX)*0.1000);
+
+                }
+                if (pixelEnd.y-pixelY<0){//lluodian in 12xiangxian
+                    pixelY = pixelEnd.y+(parseFloat(pixelY-pixelEnd.y)*0.1000);
+                }else{//34xiangxian
+                    pixelY = pixelEnd.y-(parseFloat(pixelEnd.y-pixelY)*0.1000);
+                }
+            }
+
+            var pointArrow=map.pixelToPoint(new BMap.Pixel(pixelX,pixelY));
+            var pointArrow1=map.pixelToPoint(new BMap.Pixel(pixelX1,pixelY1));
+            var Arrow = new BMap.Polyline([
+                pointArrow,
+                linePoint[i],
+                pointArrow1
+            ], {strokeColor:"blue", strokeWeight:3, strokeOpacity:0.5});
+            arrows.push(Arrow);
+            map.addOverlay(Arrow);
+        }
+    }
 </script>
 
